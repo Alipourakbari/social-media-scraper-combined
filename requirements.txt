@@ -6,3 +6,5 @@ aiohttp==3.9.1
 python-telegram-bot==20.7
 python-multipart==0.0.6
 yt-dlp==2023.11.16
+beautifulsoup4==4.12.2
+lxml==4.9.3
