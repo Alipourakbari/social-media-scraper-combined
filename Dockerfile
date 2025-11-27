@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# استفاده از نسخه پایدارتر Debian
+FROM python:3.11-bullseye
+
 # نصب وابستگی‌های سیستم برای Playwright و FFmpeg
 RUN apt-get update && apt-get install -y \
     ffmpeg \
@@ -18,11 +21,8 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     libcairo2 \
     libasound2 \
-    libxi6 \
-    libxtst6 \
-    libxrender1 \
-    libxss1 \
-    libnss3-tools \
+    fonts-liberation \
+    libappindicator3-1 \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,17 +35,12 @@ COPY requirements.txt .
 # نصب پکیج‌های پایتون
 RUN pip install --no-cache-dir -r requirements.txt
 
-# نصب Playwright و مرورگر
+# نصب Playwright و مرورگر - بدون install-deps
 RUN pip install playwright
 RUN playwright install chromium
-RUN playwright install-deps
 
 # کپی تمام فایل‌های پروژه
 COPY . .
-
-# ایجاد کاربر غیر root برای امنیت
-RUN useradd -m -u 1000 user
-USER user
 
 # دستور اجرا
 CMD ["python", "main.py"]
