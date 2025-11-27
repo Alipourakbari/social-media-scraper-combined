@@ -4,14 +4,13 @@ builder = "nixpacks"
 [build.nixpacks]
 plan = """
 [phases.setup]
-nixPkgs = ["python311", "ffmpeg"]
+nixPkgs = ["python311", "ffmpeg", "chromium", "nodejs"]
 
 [phases.install]
 cmds = [
     "pip install -r requirements.txt",
-    "playwright install --with-deps"
+    "playwright install chromium"
 ]
 
 [start]
 cmd = "python main.py"
-"""
