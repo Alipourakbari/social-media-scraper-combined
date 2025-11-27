@@ -119,12 +119,18 @@ class TelegramBotHandler:
                 "parse_mode": "HTML"
             }
             
-            files = {
-                "photo": ("photo.jpg", requests.get(photo_url).content, "image/jpeg")
-            }
-            
-            response = requests.post(url, data=data, files=files, timeout=30)
-            return response.status_code == 200
+            # دانلود عکس
+            async with aiohttp.ClientSession() as session:
+                async with session.get(photo_url) as response:
+                    if response.status == 200:
+                        photo_data = await response.read()
+                        
+                        files = {
+                            "photo": ("photo.jpg", photo_data, "image/jpeg")
+                        }
+                        
+                        response = requests.post(url, data=data, files=files, timeout=30)
+                        return response.status_code == 200
         except Exception as e:
             print(f"❌ Telegram photo send error: {e}")
             return False
