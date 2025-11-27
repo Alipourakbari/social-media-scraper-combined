@@ -14,21 +14,22 @@ import urllib.parse
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup events
-    print("🚀 Starting Social Media Scraper...")
+    print("🚀 Starting Social Media Scraper with Real APIs...")
     
     # ایجاد نمونه‌ها
     app.state.scraper = SocialMediaScraper()
     
     # ارسال پیام راه‌اندازی
     app.state.scraper.telegram.send_message("""
-🚀 <b>ربات راه‌اندازی شد</b>
+🚀 <b>ربات راه‌اندازی شد - نسخه Real API</b>
 ────────────────────
-🤖 Social Media Scraper v2.0
+🤖 Social Media Scraper v3.0
 📅 {datetime.now().strftime('%Y/%m/%d %H:%M')}
 📍 سرور: Railway
+🔧 حالت: <b>APIهای واقعی</b>
 ✅ وضعیت: <b>فعال</b>
 ────────────────────
-آماده دریافت ترندها و دانلود ویدیو!
+آماده دریافت ترندهای واقعی و دانلود ویدیو!
 """)
     
     yield  # اینجا برنامه اجرا می‌شود
@@ -39,7 +40,7 @@ async def lifespan(app: FastAPI):
     app.state.scraper.telegram.send_message("🔴 ربات متوقف شد")
 
 # ایجاد FastAPI با lifespan
-app = FastAPI(title="Social Media Scraper", version="2.0", lifespan=lifespan)
+app = FastAPI(title="Social Media Scraper - Real APIs", version="3.0", lifespan=lifespan)
 
 # Environment Variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8361557378:AAEntX7ri-he2foBASD4JPGvfSzBLMS3Spg")
@@ -60,79 +61,130 @@ class VideoDownloader:
             await self.session.close()
     
     async def download_tiktok_no_watermark(self, video_url: str) -> Optional[str]:
-        """دانلود ویدیو TikTok بدون واترمارک"""
+        """دانلود ویدیو TikTok بدون واترمارک با APIهای واقعی"""
         try:
             session = await self.get_session()
+            
+            # لیست APIهای واقعی و فعال
             apis = [
                 f"https://www.tikwm.com/api/?url={video_url}",
                 f"https://tikdown.org/api?url={video_url}",
+                f"https://api.tiklydown.eu.org/api/download?url={video_url}",
+                f"https://tiktok-downloader-download-tiktok-videos-without-watermark.p.rapidapi.com/vid/index?url={video_url}"
             ]
             
             for api_url in apis:
                 try:
-                    async with session.get(api_url, timeout=10) as response:
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json'
+                    }
+                    
+                    async with session.get(api_url, headers=headers, timeout=15) as response:
                         if response.status == 200:
                             data = await response.json()
-                            download_url = data.get('data', {}).get('play') or data.get('data', {}).get('wmplay') or data.get('url')
+                            print(f"API Response: {data}")  # برای دیباگ
+                            
+                            # استخراج لینک دانلود از فرمت‌های مختلف
+                            download_url = (
+                                data.get('data', {}).get('play') or
+                                data.get('data', {}).get('wmplay') or
+                                data.get('data', {}).get('hdplay') or
+                                data.get('url') or
+                                data.get('videoUrl') or
+                                data.get('download_url')
+                            )
+                            
                             if download_url:
                                 if not download_url.startswith('http'):
                                     download_url = 'https:' + download_url
+                                print(f"Download URL found: {download_url}")
                                 return download_url
                 except Exception as e:
                     print(f"API {api_url} failed: {e}")
                     continue
+            
+            print("No working API found for TikTok")
             return None
         except Exception as e:
             print(f"TikTok download error: {e}")
             return None
     
     async def download_instagram_no_watermark(self, post_url: str) -> Optional[str]:
-        """دانلود ویدیو اینستاگرام بدون واترمارک"""
+        """دانلود ویدیو اینستاگرام بدون واترمارک با APIهای واقعی"""
         try:
             session = await self.get_session()
+            
             apis = [
                 f"https://instasupersave.com/api/ig?url={post_url}",
                 f"https://igram.io/api/ig?url={post_url}",
+                f"https://instagram-downloader-download-instagram-videos-stories.p.rapidapi.com/index?url={post_url}"
             ]
             
             for api_url in apis:
                 try:
-                    async with session.get(api_url, timeout=10) as response:
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                        'Accept': 'application/json'
+                    }
+                    
+                    async with session.get(api_url, headers=headers, timeout=15) as response:
                         if response.status == 200:
                             data = await response.json()
+                            print(f"Instagram API Response: {data}")
+                            
+                            # استخراج لینک از فرمت‌های مختلف
                             if isinstance(data, dict):
                                 if data.get('links'):
                                     for link in data['links']:
-                                        if link.get('quality') in ['hd', 'sd']:
+                                        if link.get('quality') in ['hd', 'sd', 'high', 'medium']:
                                             return link['url']
                                 elif data.get('url'):
                                     return data['url']
+                                elif data.get('media'):
+                                    return data['media']
                 except Exception as e:
-                    print(f"API {api_url} failed: {e}")
+                    print(f"Instagram API {api_url} failed: {e}")
                     continue
+            
+            print("No working API found for Instagram")
             return None
         except Exception as e:
             print(f"Instagram download error: {e}")
             return None
     
     async def download_youtube_shorts(self, video_url: str) -> Optional[str]:
-        """دانلود YouTube Shorts"""
+        """دانلود YouTube Shorts با APIهای واقعی"""
         try:
             session = await self.get_session()
+            
             apis = [
-                f"https://co.wuk.sh/api/json?url={video_url}",
+                f"https://co.wuk.sh/api/json",
+                f"https://yt5s.com/en/api/convert",
             ]
             
             for api_url in apis:
                 try:
-                    headers = {'Accept': 'application/json'}
-                    async with session.get(api_url, headers=headers, timeout=15) as response:
+                    headers = {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                    
+                    payload = {
+                        'url': video_url,
+                        'format': 'mp4'
+                    }
+                    
+                    async with session.post(api_url, json=payload, headers=headers, timeout=20) as response:
                         if response.status == 200:
                             data = await response.json()
-                            return data.get('url')
+                            print(f"YouTube API Response: {data}")
+                            
+                            return data.get('url') or data.get('downloadUrl') or data.get('link')
                 except Exception as e:
-                    print(f"API {api_url} failed: {e}")
+                    print(f"YouTube API {api_url} failed: {e}")
                     continue
+            
             return None
         except Exception as e:
             print(f"YouTube download error: {e}")
@@ -140,6 +192,8 @@ class VideoDownloader:
     
     async def download_from_url(self, url: str) -> Optional[str]:
         """دانلود از هر URL با تشخیص خودکار پلتفرم"""
+        print(f"Attempting to download from: {url}")
+        
         if 'tiktok.com' in url:
             return await self.download_tiktok_no_watermark(url)
         elif 'instagram.com' in url:
@@ -147,6 +201,7 @@ class VideoDownloader:
         elif 'youtube.com/shorts' in url or 'youtu.be' in url:
             return await self.download_youtube_shorts(url)
         else:
+            print(f"Unsupported platform for URL: {url}")
             return None
 
 class TelegramBotHandler:
@@ -194,7 +249,7 @@ class TelegramBotHandler:
                             "document": ("video.mp4", video_data, "video/mp4")
                         }
                         
-                        response = requests.post(url, data=data, files=files, timeout=30)
+                        response = requests.post(url, data=data, files=files, timeout=60)
                         return response.status_code == 200
         except Exception as e:
             print(f"Telegram video send error: {e}")
@@ -211,86 +266,128 @@ class SocialMediaScraper:
             "last_run": None
         }
     
-    async def scrape_tiktok_trending(self, limit: int = 10) -> List[Dict]:
-        """اسکرپ ترندهای TikTok"""
+    async def get_real_trending_videos(self) -> Dict[str, List[Dict]]:
+        """دریافت ترندهای واقعی از APIهای عمومی"""
         try:
-            # در نسخه واقعی اینجا از API TikTok استفاده می‌شود
-            videos = []
-            for i in range(limit):
-                video_data = {
-                    'id': f'tiktok_{i}',
-                    'description': f'ویدیوی ترند تیک‌تاک شماره {i+1} 🎵',
-                    'views': 500000 + i * 25000,
-                    'likes': 25000 + i * 1200,
-                    'comments': 1500 + i * 80,
-                    'platform': 'tiktok',
-                    'hashtags': ['#ترند', '#تیک‌تاک', '#ویدیو', '#ایران'],
-                    'url': f'https://www.tiktok.com/@creator/video/7{i}123456789',
-                    'download_url': None,
-                    'timestamp': datetime.now().isoformat()
-                }
-                
-                # دریافت لینک دانلود
-                download_url = await self.downloader.download_tiktok_no_watermark(video_data['url'])
-                video_data['download_url'] = download_url
-                
-                if download_url:
-                    self.stats["successful_downloads"] += 1
-                    # ارسال به تلگرام
-                    caption = self._create_caption(video_data)
-                    await self.telegram.send_video(download_url, caption)
-                else:
-                    self.stats["failed_downloads"] += 1
-                
-                self.stats["total_downloads"] += 1
-                videos.append(video_data)
+            # استفاده از APIهای عمومی برای ترندها
+            trending_data = {
+                "tiktok": await self._get_tiktok_trending_from_api(),
+                "instagram": await self._get_instagram_trending_from_api()
+            }
             
-            self.stats["last_run"] = datetime.now().isoformat()
-            return videos
-            
+            return trending_data
         except Exception as e:
-            error_msg = f"❌ خطا در دریافت ترندهای تیک‌تاک: {str(e)}"
+            error_msg = f"❌ خطا در دریافت ترندهای واقعی: {str(e)}"
             self.telegram.send_message(error_msg)
+            return {"tiktok": [], "instagram": []}
+    
+    async def _get_tiktok_trending_from_api(self) -> List[Dict]:
+        """دریافت ترندهای واقعی TikTok از API"""
+        try:
+            # استفاده از API عمومی TikTok برای ترندها
+            async with aiohttp.ClientSession() as session:
+                # این API ترندهای TikTok رو برمی‌گردونه
+                api_url = "https://tiktok-api-fetcher.vercel.app/api/trending"
+                
+                async with session.get(api_url, timeout=15) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        videos = []
+                        
+                        for item in data.get('videos', [])[:10]:  # 10 ویدیوی اول
+                            video_data = {
+                                'id': item.get('id', ''),
+                                'description': item.get('desc', 'ترند TikTok'),
+                                'views': item.get('playCount', 0),
+                                'likes': item.get('diggCount', 0),
+                                'comments': item.get('commentCount', 0),
+                                'platform': 'tiktok',
+                                'hashtags': self._extract_hashtags(item.get('desc', '')),
+                                'url': f"https://www.tiktok.com/@{item.get('author', {}).get('uniqueId', 'user')}/video/{item.get('id', '')}",
+                                'download_url': None,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            # سعی در دانلود ویدیو
+                            download_url = await self.downloader.download_tiktok_no_watermark(video_data['url'])
+                            video_data['download_url'] = download_url
+                            
+                            if download_url:
+                                self.stats["successful_downloads"] += 1
+                                caption = self._create_caption(video_data)
+                                await self.telegram.send_video(download_url, caption)
+                            else:
+                                self.stats["failed_downloads"] += 1
+                            
+                            self.stats["total_downloads"] += 1
+                            videos.append(video_data)
+                        
+                        return videos
+            
+            return []
+        except Exception as e:
+            print(f"TikTok trending API error: {e}")
             return []
     
-    async def scrape_instagram_trending(self, limit: int = 10) -> List[Dict]:
-        """اسکرپ ترندهای Instagram"""
+    async def _get_instagram_trending_from_api(self) -> List[Dict]:
+        """دریافت ترندهای واقعی Instagram"""
         try:
-            videos = []
-            for i in range(limit):
-                video_data = {
-                    'id': f'instagram_{i}',
-                    'description': f'پست ترند اینستاگرام شماره {i+1} 📸',
-                    'views': 300000 + i * 15000,
-                    'likes': 18000 + i * 900,
-                    'comments': 800 + i * 40,
-                    'platform': 'instagram',
-                    'hashtags': ['#اینستاگرام', '#ترند', '#اکسپلور', '#پست'],
-                    'url': f'https://www.instagram.com/p/ABC{i}123456/',
-                    'download_url': None,
-                    'timestamp': datetime.now().isoformat()
+            # استفاده از API عمومی برای ترندهای Instagram
+            async with aiohttp.ClientSession() as session:
+                # این API پست‌های پرطرفدار Instagram رو برمی‌گردونه
+                api_url = "https://www.instagram.com/explore/tags/trending/?__a=1"
+                
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
                 
-                download_url = await self.downloader.download_instagram_no_watermark(video_data['url'])
-                video_data['download_url'] = download_url
-                
-                if download_url:
-                    self.stats["successful_downloads"] += 1
-                    caption = self._create_caption(video_data)
-                    await self.telegram.send_video(download_url, caption)
-                else:
-                    self.stats["failed_downloads"] += 1
-                
-                self.stats["total_downloads"] += 1
-                videos.append(video_data)
+                async with session.get(api_url, headers=headers, timeout=15) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        posts = []
+                        
+                        # استخراج پست‌ها از پاسخ API
+                        edges = data.get('graphql', {}).get('hashtag', {}).get('edge_hashtag_to_top_posts', {}).get('edges', [])
+                        
+                        for edge in edges[:10]:  # 10 پست اول
+                            node = edge.get('node', {})
+                            post_data = {
+                                'id': node.get('id', ''),
+                                'description': node.get('edge_media_to_caption', {}).get('edges', [{}])[0].get('node', {}).get('text', 'ترند Instagram'),
+                                'views': node.get('video_view_count', 0),
+                                'likes': node.get('edge_liked_by', {}).get('count', 0),
+                                'comments': node.get('edge_media_to_comment', {}).get('count', 0),
+                                'platform': 'instagram',
+                                'hashtags': self._extract_hashtags(node.get('edge_media_to_caption', {}).get('edges', [{}])[0].get('node', {}).get('text', '')),
+                                'url': f"https://www.instagram.com/p/{node.get('shortcode', '')}/",
+                                'download_url': None,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                            
+                            # سعی در دانلود ویدیو
+                            download_url = await self.downloader.download_instagram_no_watermark(post_data['url'])
+                            post_data['download_url'] = download_url
+                            
+                            if download_url:
+                                self.stats["successful_downloads"] += 1
+                                caption = self._create_caption(post_data)
+                                await self.telegram.send_video(download_url, caption)
+                            else:
+                                self.stats["failed_downloads"] += 1
+                            
+                            self.stats["total_downloads"] += 1
+                            posts.append(post_data)
+                        
+                        return posts
             
-            self.stats["last_run"] = datetime.now().isoformat()
-            return videos
-            
-        except Exception as e:
-            error_msg = f"❌ خطا در دریافت ترندهای اینستاگرام: {str(e)}"
-            self.telegram.send_message(error_msg)
             return []
+        except Exception as e:
+            print(f"Instagram trending API error: {e}")
+            return []
+    
+    def _extract_hashtags(self, text: str) -> List[str]:
+        """استخراج هشتگ‌ها از متن"""
+        return re.findall(r'#\w+', text) if text else []
     
     def _create_caption(self, video_data: Dict) -> str:
         """ایجاد کپشن برای ویدیوها"""
@@ -306,7 +403,7 @@ class SocialMediaScraper:
         return f"""
 {icon} <b>{video_data['platform'].upper()} ترند</b>
 ────────────────────
-📝 {video_data['description']}
+📝 {video_data['description'][:100]}{'...' if len(video_data['description']) > 100 else ''}
 👁️ {video_data['views']:,} بازدید
 ❤️ {video_data['likes']:,} لایک
 💬 {video_data['comments']:,} کامنت
@@ -318,6 +415,7 @@ class SocialMediaScraper:
     async def download_custom_url(self, url: str) -> Dict:
         """دانلود از URL دلخواه"""
         try:
+            print(f"Downloading custom URL: {url}")
             download_url = await self.downloader.download_from_url(url)
             
             result = {
@@ -329,10 +427,15 @@ class SocialMediaScraper:
             
             if download_url:
                 caption = f"📥 ویدیو دانلود شده از {result['platform']}\n🔗 {url}"
-                await self.telegram.send_video(download_url, caption)
-                self.stats["successful_downloads"] += 1
+                success = await self.telegram.send_video(download_url, caption)
+                if success:
+                    self.stats["successful_downloads"] += 1
+                    result['telegram_sent'] = True
+                else:
+                    result['telegram_sent'] = False
             else:
                 self.stats["failed_downloads"] += 1
+                result['telegram_sent'] = False
             
             self.stats["total_downloads"] += 1
             return result
@@ -369,10 +472,10 @@ class SocialMediaScraper:
 @app.get("/")
 async def root():
     return {
-        "message": "🤖 ربات دانلود ویدیوهای ترند فعال است!",
-        "version": "2.0",
+        "message": "🤖 ربات دانلود ویدیوهای ترند با APIهای واقعی فعال است!",
+        "version": "3.0",
         "endpoints": {
-            "trending": "/trending/all",
+            "trending": "/trending/real",
             "download_tiktok": "/download/tiktok",
             "download_instagram": "/download/instagram", 
             "download_custom": "/download/custom?url=YOUR_URL",
@@ -380,19 +483,21 @@ async def root():
         }
     }
 
-@app.get("/trending/all")
-async def get_all_trending(limit: int = 5):
-    """دریافت همه ترندها"""
+@app.get("/trending/real")
+async def get_real_trending(limit: int = 5):
+    """دریافت ترندهای واقعی"""
     scraper = app.state.scraper
-    tiktok = await scraper.scrape_tiktok_trending(limit)
-    instagram = await scraper.scrape_instagram_trending(limit)
+    trending_data = await scraper.get_real_trending_videos()
+    
+    tiktok = trending_data.get('tiktok', [])[:limit]
+    instagram = trending_data.get('instagram', [])[:limit]
     
     total = len(tiktok) + len(instagram)
     successful = len([v for v in tiktok if v['download_url']]) + len([v for v in instagram if v['download_url']])
     
     # ارسال گزارش
     report = f"""
-📊 <b>گزارش کامل ترندها</b>
+📊 <b>گزارش ترندهای واقعی</b>
 ────────────────────
 🎵 TikTok: {len(tiktok)} ویدیو
 📸 Instagram: {len(instagram)} پست
@@ -406,30 +511,6 @@ async def get_all_trending(limit: int = 5):
         "instagram": {"count": len(instagram), "videos": instagram},
         "total": total,
         "successful": successful
-    }
-
-@app.get("/download/tiktok")
-async def download_tiktok(limit: int = 5):
-    """دانلود ترندهای TikTok"""
-    scraper = app.state.scraper
-    videos = await scraper.scrape_tiktok_trending(limit)
-    return {
-        "platform": "tiktok",
-        "count": len(videos),
-        "successful": len([v for v in videos if v['download_url']]),
-        "videos": videos
-    }
-
-@app.get("/download/instagram")
-async def download_instagram(limit: int = 5):
-    """دانلود ترندهای Instagram"""
-    scraper = app.state.scraper
-    videos = await scraper.scrape_instagram_trending(limit)
-    return {
-        "platform": "instagram", 
-        "count": len(videos),
-        "successful": len([v for v in videos if v['download_url']]),
-        "videos": videos
     }
 
 @app.get("/download/custom")
@@ -454,11 +535,12 @@ async def test_bot():
     """تست سلامت ربات"""
     scraper = app.state.scraper
     success = scraper.telegram.send_message(f"""
-✅ <b>تست سلامت ربات</b>
+✅ <b>تست سلامت ربات - نسخه Real API</b>
 ────────────────────
 🤖 وضعیت: <b>فعال</b>
 ⏰ زمان: {datetime.now().strftime('%Y/%m/%d %H:%M')}
-📡 سرویس: <b>آنلاین</b>
+📡 سرویس: <b>APIهای واقعی</b>
+🔧 نسخه: 3.0
 ────────────────────
 ربات آماده دریافت فرمان‌ها است!
 """)
