@@ -153,7 +153,7 @@ class InstagramScraper:
             print("ℹ️ No Instagram credentials provided - using public mode")
             self.telegram.send_message("ℹ️ <b>حالت عمومی فعال شد</b>\n\nربات فقط به محتوای عمومی دسترسی دارد.")
     
-    async def get_trending_hashtags(self, limit:10) -> List[Dict]:
+    async def get_trending_hashtags(self, limit=10) -> List[Dict]:
         """دریافت پست‌های ترند از هشتگ‌های محبوب"""
         try:
             print("🔄 Getting trending posts from Instagram...")
