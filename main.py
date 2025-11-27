@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
 import requests
 import re
 import asyncio
@@ -9,7 +10,36 @@ from typing import List, Dict, Optional
 import aiohttp
 import urllib.parse
 
-app = FastAPI(title="Social Media Scraper", version="2.0")
+# ایجاد lifespan manager اول
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup events
+    print("🚀 Starting Social Media Scraper...")
+    
+    # ایجاد نمونه‌ها
+    app.state.scraper = SocialMediaScraper()
+    
+    # ارسال پیام راه‌اندازی
+    app.state.scraper.telegram.send_message("""
+🚀 <b>ربات راه‌اندازی شد</b>
+────────────────────
+🤖 Social Media Scraper v2.0
+📅 {datetime.now().strftime('%Y/%m/%d %H:%M')}
+📍 سرور: Railway
+✅ وضعیت: <b>فعال</b>
+────────────────────
+آماده دریافت ترندها و دانلود ویدیو!
+""")
+    
+    yield  # اینجا برنامه اجرا می‌شود
+    
+    # Shutdown events
+    print("🔴 Shutting down Social Media Scraper...")
+    await app.state.scraper.downloader.close_session()
+    app.state.scraper.telegram.send_message("🔴 ربات متوقف شد")
+
+# ایجاد FastAPI با lifespan
+app = FastAPI(title="Social Media Scraper", version="2.0", lifespan=lifespan)
 
 # Environment Variables
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8361557378:AAEntX7ri-he2foBASD4JPGvfSzBLMS3Spg")
@@ -335,9 +365,6 @@ class SocialMediaScraper:
             "uptime": "active"
         }
 
-# ایجاد نمونه اصلی
-scraper = SocialMediaScraper()
-
 # Routes
 @app.get("/")
 async def root():
@@ -356,6 +383,7 @@ async def root():
 @app.get("/trending/all")
 async def get_all_trending(limit: int = 5):
     """دریافت همه ترندها"""
+    scraper = app.state.scraper
     tiktok = await scraper.scrape_tiktok_trending(limit)
     instagram = await scraper.scrape_instagram_trending(limit)
     
@@ -383,6 +411,7 @@ async def get_all_trending(limit: int = 5):
 @app.get("/download/tiktok")
 async def download_tiktok(limit: int = 5):
     """دانلود ترندهای TikTok"""
+    scraper = app.state.scraper
     videos = await scraper.scrape_tiktok_trending(limit)
     return {
         "platform": "tiktok",
@@ -394,6 +423,7 @@ async def download_tiktok(limit: int = 5):
 @app.get("/download/instagram")
 async def download_instagram(limit: int = 5):
     """دانلود ترندهای Instagram"""
+    scraper = app.state.scraper
     videos = await scraper.scrape_instagram_trending(limit)
     return {
         "platform": "instagram", 
@@ -408,19 +438,22 @@ async def download_custom_url(url: str):
     if not url:
         raise HTTPException(status_code=400, detail="URL parameter is required")
     
+    scraper = app.state.scraper
     result = await scraper.download_custom_url(url)
     return result
 
 @app.get("/stats")
 async def get_stats():
     """دریافت آمار عملکرد"""
+    scraper = app.state.scraper
     stats = scraper.get_stats()
     return stats
 
 @app.get("/test")
 async def test_bot():
     """تست سلامت ربات"""
-    success = scraper.telegram.send_message("""
+    scraper = app.state.scraper
+    success = scraper.telegram.send_message(f"""
 ✅ <b>تست سلامت ربات</b>
 ────────────────────
 🤖 وضعیت: <b>فعال</b>
@@ -430,27 +463,6 @@ async def test_bot():
 ربات آماده دریافت فرمان‌ها است!
 """)
     return {"status": "success" if success else "failed", "timestamp": datetime.now().isoformat()}
-
-# Event handlers
-@app.on_event("startup")
-async def startup_event():
-    """وقتی سرور راه‌اندازی می‌شود"""
-    scraper.telegram.send_message("""
-🚀 <b>ربات راه‌اندازی شد</b>
-────────────────────
-🤖 Social Media Scraper v2.0
-📅 {datetime.now().strftime('%Y/%m/%d %H:%M')}
-📍 سرور: Railway
-✅ وضعیت: <b>فعال</b>
-────────────────────
-آماده دریافت ترندها و دانلود ویدیو!
-""")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """وقتی سرور خاموش می‌شود"""
-    await scraper.downloader.close_session()
-    scraper.telegram.send_message("🔴 ربات متوقف شد")
 
 if __name__ == "__main__":
     import uvicorn
