@@ -1,18 +1,9 @@
-FROM python:3.11-slim
-
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    wget \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# نصب Playwright بدون مرورگر (سبک‌تر)
-RUN pip install playwright
-
-COPY . .
-
-CMD ["python", "main.py"]
+fastapi==0.104.1
+uvicorn==0.24.0
+playwright==1.40.0
+requests==2.31.0
+aiohttp==3.9.1
+python-telegram-bot==20.7
+python-multipart==0.0.6
+beautifulsoup4==4.12.2
+lxml==4.9.3
